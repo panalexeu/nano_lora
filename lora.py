@@ -38,10 +38,14 @@ class LoRAGPT(nn.Module):
         self.wv_B = self._init_B() if 'wv' in self.cfg.adapts else None
 
     def _init_A(self) -> nn.ModuleList:
-        return nn.ModuleList([nn.Linear(in_features=self.embed, out_features=self.cfg.rank, bias=False) for _ in range(self.fmodel.config.n_layer)])
+        modules = nn.ModuleList([nn.Linear(in_features=self.embed, out_features=self.cfg.rank, bias=False) for _ in range(self.fmodel.config.n_layer)])
+        [nn.init.normal_(m.weight, mean=0.0, std=1.0) for m in modules]
+        return modules
 
     def _init_B(self,) -> nn.ModuleList: 
-        return nn.ModuleList([nn.Linear(in_features=self.cfg.rank, out_features=self.embed, bias=False) for _ in range(self.fmodel.config.n_layer)])
+        modules = nn.ModuleList([nn.Linear(in_features=self.cfg.rank, out_features=self.embed, bias=False) for _ in range(self.fmodel.config.n_layer)])
+        [nn.init.zeros_(m.weight) for m in modules]
+        return modules
 
     def forward(self, idx, targets=None):
         device = idx.device
@@ -52,9 +56,13 @@ class LoRAGPT(nn.Module):
         tok_emb = self.fmodel.transformer.wte(idx)
         pos_emb = self.fmodel.transformer.wpe(pos) 
         x = self.fmodel.transformer.drop(tok_emb + pos_emb)
-        for block in self.fmodel.transformer.h:
+        xq, xk, xv = None, None, None
+        for i, block in enumerate(self.fmodel.transformer.h):
             x = block.ln_1(x)
-            x = x + block.attn(x)
+            if 'wq' in self.cfg.adapts: xq = self.wq_A[i](x) @ self.wq_B[i](x)
+            if 'wk' in self.cfg.adapts: xk = self.wk_A[i](x) @ self.wk_B[i](x)
+            if 'wv' in self.cfg.adapts: xv = self.wv_A[i](x) @ self.wv_B[i](x)
+            x = x + block.attn(x, xq, xk, xv)
             x = x + block.mlp(block.ln_2(x))            
         x = self.fmodel.transformer.ln_f(x)
 
