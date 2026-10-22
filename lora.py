@@ -1,4 +1,5 @@
 import math
+import inspect
 from typing import Literal
 from dataclasses import dataclass, field
 
@@ -89,6 +90,15 @@ class LoRAGPT(nn.Module):
         if self.wv_B is not None: params += sum([m.numel() for m in self.wv_B.parameters()])
         return params 
 
+
+    def configure_optimizer(self, weight_decay: float, learning_rate: float, betas: tuple[float, float], device_type: str): 
+        params = [p for p in self.parameters() if p.requires_grad]
+        fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
+        use_fused = fused_available and device_type == 'cuda'
+        extra_args = dict(fused=True) if use_fused else dict()
+        optimizer = torch.optim.AdamW(params, weight_decay=weight_decay, lr=learning_rate, betas=betas, **extra_args)
+        print(f"using fused AdamW: {use_fused}")
+        return optimizer
 
     def merge(): 
         # TODO implement lr matrices merging into model weights 
