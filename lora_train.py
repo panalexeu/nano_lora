@@ -9,11 +9,13 @@ if __name__ == '__main__':
     cfg = LoRAConfig(
         rank=1,
         model_type='gpt2', 
-        adapts=set(['w_o']), 
+        adapts=set(['wv']), 
         block_size=1024
     )
     lora_gpt = LoRAGPT(cfg)
     lora_gpt.to(device)
+    print('trainable params: ', lora_gpt.get_lora_params_count())
+    breakpoint()
 
     enc = tiktoken.get_encoding("gpt2")
     encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
