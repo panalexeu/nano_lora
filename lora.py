@@ -10,6 +10,7 @@ from model import GPT
 @dataclass 
 class LoRAConfig: 
     rank: int = 1
+    alpha: int = 1
     model_type: Literal['gpt2', 'gpt2-medium', 'gpt2-large', 'gpt2-xl'] = 'gpt2'
     adapts: set[Literal['wq', 'wk', 'wv']] = field(default_factory=set(['wv']))
     block_size: int = 1024
@@ -25,6 +26,7 @@ class LoRAGPT(nn.Module):
         self.fmodel = GPT.from_pretrained(self.cfg.model_type)
         self.fmodel.requires_grad_(False)  
         self.embed = self.fmodel.config.n_embd
+        self.scale = self.cfg.alpha / self.cfg.rank
 
         assert 1 <= self.cfg.rank <= self.embed 
         assert 1 <= len(self.cfg.adapts) <= 3
@@ -37,15 +39,14 @@ class LoRAGPT(nn.Module):
         self.wv_A = self._init_A() if 'wv' in self.cfg.adapts else None
         self.wv_B = self._init_B() if 'wv' in self.cfg.adapts else None
 
-    def _init_A(self) -> nn.ModuleList:
-        modules = nn.ModuleList([nn.Linear(in_features=self.embed, out_features=self.cfg.rank, bias=False) for _ in range(self.fmodel.config.n_layer)])
-        [nn.init.normal_(m.weight, mean=0.0, std=1.0) for m in modules]
-        return modules
+    def _init_A(self) -> nn.ParameterList:
+        params = nn.ParameterList([nn.Parameter(torch.empty(self.embed, self.cfg.rank)) for _ in range(self.fmodel.config.n_layer)])
+        [nn.init.normal_(p, mean=0.0, std=1.0) for p in params]
+        return params
 
-    def _init_B(self,) -> nn.ModuleList: 
-        modules = nn.ModuleList([nn.Linear(in_features=self.cfg.rank, out_features=self.embed, bias=False) for _ in range(self.fmodel.config.n_layer)])
-        [nn.init.zeros_(m.weight) for m in modules]
-        return modules
+    def _init_B(self,) -> nn.ParameterList: 
+        params = nn.ParameterList([nn.Parameter(torch.zeros(self.cfg.rank, self.embed)) for _ in range(self.fmodel.config.n_layer)])
+        return params
 
     def forward(self, idx, targets=None):
         device = idx.device
@@ -59,9 +60,9 @@ class LoRAGPT(nn.Module):
         xq, xk, xv = None, None, None
         for i, block in enumerate(self.fmodel.transformer.h):
             x = block.ln_1(x)
-            if 'wq' in self.cfg.adapts: xq = self.wq_A[i](x) @ self.wq_B[i](x)
-            if 'wk' in self.cfg.adapts: xk = self.wk_A[i](x) @ self.wk_B[i](x)
-            if 'wv' in self.cfg.adapts: xv = self.wv_A[i](x) @ self.wv_B[i](x)
+            if 'wq' in self.cfg.adapts: xq = x @ self.wq_A[i] @ self.wq_B[i]
+            if 'wk' in self.cfg.adapts: xk = x @ self.wk_A[i] @ self.wk_B[i]
+            if 'wv' in self.cfg.adapts: xv = x @ self.wv_A[i] @ self.wv_B[i]
             x = x + block.attn(x, xq, xk, xv)
             x = x + block.mlp(block.ln_2(x))            
         x = self.fmodel.transformer.ln_f(x)
@@ -76,7 +77,6 @@ class LoRAGPT(nn.Module):
             loss = None
 
         return logits, loss 
-
 
     def get_lora_params_count(self,) -> int: 
         params = 0
