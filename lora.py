@@ -87,3 +87,8 @@ class LoRAGPT(nn.Module):
         if self.wv_A is not None: params += sum([m.numel() for m in self.wv_A.parameters()])
         if self.wv_B is not None: params += sum([m.numel() for m in self.wv_B.parameters()])
         return params 
+
+
+    def merge(): 
+        # TODO implement lr matrices merging into model weights 
+        pass
