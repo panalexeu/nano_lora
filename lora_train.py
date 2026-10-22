@@ -25,10 +25,6 @@ if __name__ == '__main__':
     start_ids = encode(prompt)
     idx = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])
     for i in range(32): 
-        logits, _ = lora_gpt.forward(idx)
-        logits = logits[:, -1, :] / temperature   # [1, 50257]
-        probs = F.softmax(logits, dim=-1)
-        idx_next = torch.multinomial(probs, num_samples=1)   # [1, 1]
-        idx = torch.cat((idx, idx_next), dim=1)
-        print(f'\r{decode(idx[0].tolist())}', end='')
-    print()
+        lora_logits, _ = lora_gpt.forward(idx)
+        fm_logits, _ = lora_gpt.fmodel.forward(idx)
+        assert torch.allclose(lora_logits, fm_logits)

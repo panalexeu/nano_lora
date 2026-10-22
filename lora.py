@@ -1,3 +1,4 @@
+import math
 from typing import Literal
 from dataclasses import dataclass, field
 
@@ -12,7 +13,7 @@ class LoRAConfig:
     rank: int = 1
     alpha: int = 1
     model_type: Literal['gpt2', 'gpt2-medium', 'gpt2-large', 'gpt2-xl'] = 'gpt2'
-    adapts: set[Literal['wq', 'wk', 'wv']] = field(default_factory=set(['wv']))
+    adapts: set[Literal['wq', 'wk', 'wv']] = field(default_factory=lambda: set(['wv']))
     block_size: int = 1024
 
 class LoRAGPT(nn.Module): 
@@ -41,7 +42,7 @@ class LoRAGPT(nn.Module):
 
     def _init_A(self) -> nn.ParameterList:
         params = nn.ParameterList([nn.Parameter(torch.empty(self.embed, self.cfg.rank)) for _ in range(self.fmodel.config.n_layer)])
-        [nn.init.normal_(p, mean=0.0, std=1.0) for p in params]
+        [nn.init.normal_(p, mean=0.0, std=1 / math.sqrt(self.embed)) for p in params]
         return params
 
     def _init_B(self,) -> nn.ParameterList: 
@@ -59,11 +60,11 @@ class LoRAGPT(nn.Module):
         x = self.fmodel.transformer.drop(tok_emb + pos_emb)
         xq, xk, xv = None, None, None
         for i, block in enumerate(self.fmodel.transformer.h):
-            x = block.ln_1(x)
-            if 'wq' in self.cfg.adapts: xq = x @ self.wq_A[i] @ self.wq_B[i]
-            if 'wk' in self.cfg.adapts: xk = x @ self.wk_A[i] @ self.wk_B[i]
-            if 'wv' in self.cfg.adapts: xv = x @ self.wv_A[i] @ self.wv_B[i]
-            x = x + block.attn(x, xq, xk, xv)
+            h = block.ln_1(x)
+            if 'wq' in self.cfg.adapts: xq = h @ self.wq_A[i] @ self.wq_B[i] * self.scale
+            if 'wk' in self.cfg.adapts: xk = h @ self.wk_A[i] @ self.wk_B[i] * self.scale
+            if 'wv' in self.cfg.adapts: xv = h @ self.wv_A[i] @ self.wv_B[i] * self.scale 
+            x = x + block.attn(h, xq, xk, xv)
             x = x + block.mlp(block.ln_2(x))            
         x = self.fmodel.transformer.ln_f(x)
 
