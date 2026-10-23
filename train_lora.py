@@ -11,7 +11,7 @@ ds_path = './data/alpaca-cleaned/ds'
 ds = datasets.load_from_disk(ds_path)
 gradient_acumulation_steps = 5
 batch_size = 5
-block_size = 3072
+block_size = 1024
 # lora
 rank = 1
 alpha = 1 
