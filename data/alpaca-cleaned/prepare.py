@@ -8,6 +8,7 @@ block_size = 1024
 enc = tiktoken.get_encoding('gpt2')
 path = './data/alpaca-cleaned/ds'
 
+# alpaca prompt templates: 
 PROMPT_WITH_INPUT = (
     "Below is an instruction that describes a task, paired with an input that provides further context. "
     "Write a response that appropriately completes the request.\n\n"
