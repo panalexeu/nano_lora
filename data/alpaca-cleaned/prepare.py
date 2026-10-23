@@ -66,3 +66,13 @@ if __name__ == '__main__':
     for split, ds in tokenized.items():
         print(f"{split}: dropped {before[split] - len(ds)} of {before[split]}")
     tokenized.save_to_disk(path)
+    # DatasetDict({
+    #     train: Dataset({
+    #         features: ['ids', 'instr_len', 'len'],
+    #         num_rows: 49150
+    #     })
+    #     val: Dataset({
+    #         features: ['ids', 'instr_len', 'len'],
+    #         num_rows: 2587
+    #     })
+    # })

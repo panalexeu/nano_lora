@@ -1,4 +1,4 @@
-# a lighter version of the original nanogpt training script. mainly the ddp functionality was stripped, float16 and scaler.
+# a lighter version of the original nanogpt training script. mainly the ddp functionality, float16 and the scaler were stripped.
 import time
 from contextlib import nullcontext
 
@@ -9,29 +9,31 @@ import datasets
 
 from lora import LoRAGPT, LoRAConfig
 
+# basically the hyperparams from table 11, DART (let's assume the DART task is the closest thing to instruction-following alpaca)
+# tuned for the alpaca-cleaned ds, block_size 1024
 # I/O
 out_dir = 'out'
 ckpt_name = 'alpaca_gpt'
 log_interval = 1
 eval_interval = 2000
-eval_iters = 200
+eval_iters = 2587 // 8
 eval_only = False
 # data
 ds_path = './data/alpaca-cleaned/ds'
 ds = datasets.load_from_disk(ds_path)
 gradient_accumulation_steps = 1
-batch_size = 5
+batch_size = 8
 block_size = 1024
 # lora
-rank = 1
-alpha = 1 
+rank = 4
+alpha = 32 
 model_type = 'gpt2'
-adapts = set(['wv'])
+adapts = set(['wq', 'wv'])
 # adamw optimizer
-max_iters = 600000
-weight_decay = 1e-2
+max_iters = (49_150 // 8) * 5
+weight_decay = 0.0
 beta1 = 0.9
-beta2 = 0.95
+beta2 = 0.99
 grad_clip = 1.0 
 # learning rate decay settings
 warmup_iters = 500 
@@ -40,21 +42,18 @@ learning_rate = 2e-4
 device = 'cuda'
 dtype = 'bfloat16'
 compile = True
-
 # encoding 
 enc = tiktoken.get_encoding("gpt2")
-encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
-decode = lambda l: enc.decode(l)
 
 def _get_batch(split):
-    # if works => do not touch! 
+    # if it works => do not touch! 
     data = ds[split]
     idxs = torch.randint(len(data), (batch_size,)).tolist()
     rows = data[idxs]                       # dict of lists: rows['ids'], rows['instr_len'], ...
 
     xs, ys = [], []
     for ids, instr_len in zip(rows['ids'], rows['instr_len']):
-        ids = ids[:block_size + 1]          # safety truncation (see note below)
+        ids = ids[:block_size + 1]          # safety truncation 
         x = torch.tensor(ids[:-1], dtype=torch.long)
         y = torch.tensor(ids[1:], dtype=torch.long)
         y[:instr_len - 1] = -1              # don't train on predicting the prompt
