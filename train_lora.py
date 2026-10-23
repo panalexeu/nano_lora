@@ -10,27 +10,27 @@ import datasets
 from lora import LoRAGPT, LoRAConfig
 
 # basically the hyperparams from table 11, DART (let's assume the DART task is the closest thing to instruction-following alpaca)
-# tuned for the alpaca-cleaned ds, block_size 1024
+# tuned for the alpaca-cleaned ds, block_size 512
 # I/O
 out_dir = 'out'
 ckpt_name = 'alpaca_gpt'
 log_interval = 1
 eval_interval = 2000
-eval_iters = 2587 // 8
+eval_iters = 2535 // 8
 eval_only = False
 # data
 ds_path = './data/alpaca-cleaned/ds'
 ds = datasets.load_from_disk(ds_path)
-gradient_accumulation_steps = 1
-batch_size = 8
-block_size = 1024
+gradient_accumulation_steps = 2
+batch_size = 4
+block_size = 512
 # lora
 rank = 4
 alpha = 32 
 model_type = 'gpt2'
 adapts = set(['wq', 'wv'])
 # adamw optimizer
-max_iters = (49_150 // 8) * 5
+max_iters = (47_994 // 8) * 5
 weight_decay = 0.0
 beta1 = 0.9
 beta2 = 0.99

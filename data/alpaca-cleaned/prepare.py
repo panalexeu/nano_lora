@@ -4,7 +4,7 @@ from datasets import load_dataset
 seed = 2004
 num_proc = 8
 test_size = 0.05
-block_size = 1024
+block_size = 512
 enc = tiktoken.get_encoding('gpt2')
 path = './data/alpaca-cleaned/ds'
 
@@ -69,10 +69,10 @@ if __name__ == '__main__':
     # DatasetDict({
     #     train: Dataset({
     #         features: ['ids', 'instr_len', 'len'],
-    #         num_rows: 49150
+    #         num_rows: 47994
     #     })
     #     val: Dataset({
     #         features: ['ids', 'instr_len', 'len'],
-    #         num_rows: 2587
+    #         num_rows: 2535
     #     })
     # })
