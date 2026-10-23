@@ -15,7 +15,7 @@ from lora import LoRAGPT, LoRAConfig
 out_dir = 'out'
 ckpt_name = 'alpaca_gpt'
 log_interval = 1
-eval_interval = 2000
+eval_interval = 1000
 eval_iters = 2535 // 4 # divided by the actual batch size 
 eval_only = False
 # data
