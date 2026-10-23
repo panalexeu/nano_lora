@@ -1,5 +1,4 @@
 import torch
-from torch.nn import functional as F
 import tiktoken
 
 from lora import LoRAGPT, LoRAConfig
