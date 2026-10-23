@@ -16,7 +16,7 @@ out_dir = 'out'
 ckpt_name = 'alpaca_gpt'
 log_interval = 1
 eval_interval = 2000
-eval_iters = 2535 // 4 # actual batch size 
+eval_iters = 2535 // 4 # divided by the actual batch size 
 eval_only = False
 # data
 ds_path = './data/alpaca-cleaned/ds'
@@ -30,7 +30,7 @@ alpha = 32
 model_type = 'gpt2'
 adapts = set(['wq', 'wv'])
 # adamw optimizer
-max_iters = (47_994 // 8) * 5  # diviced by gradient accum batch size 
+max_iters = (47_994 // 8) * 5  # divided by the effective batch size (batch_size * gradient_accumulation_steps) 
 weight_decay = 0.0
 beta1 = 0.9
 beta2 = 0.99
