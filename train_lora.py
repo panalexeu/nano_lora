@@ -113,7 +113,6 @@ if __name__ == '__main__':
     )
     model = LoRAGPT(cfg)
     model.to(device)
-    print('LoRA trainable params: ', model.get_lora_params_count())
 
     optimizer = model.configure_optimizer(weight_decay, learning_rate, (beta1, beta2), device_type)
     if compile: 

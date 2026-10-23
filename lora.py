@@ -43,6 +43,8 @@ class LoRAGPT(nn.Module):
         self.wv_A = self._init_A() if self._adapt_exists('wv') else None
         self.wv_B = self._init_B() if self._adapt_exists('wv') else None
 
+        print("number of LoRA parameters: %.2fM" % (self.get_lora_params_count()/1e6,))
+
     def _adapt_exists(self, key: Literal['wq', 'wk', 'wv']) -> bool: 
         return key in self.cfg.adapts
  
