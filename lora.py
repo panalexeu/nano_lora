@@ -35,13 +35,16 @@ class LoRAGPT(nn.Module):
         assert 1 <= len(self.cfg.adapts) <= 3
 
         # low rank matrices init 
-        self.wq_A = self._init_A() if 'wq' in self.cfg.adapts else None
-        self.wq_B = self._init_B() if 'wq' in self.cfg.adapts else None
-        self.wk_A = self._init_A() if 'wk' in self.cfg.adapts else None
-        self.wk_B = self._init_B() if 'wk' in self.cfg.adapts else None
-        self.wv_A = self._init_A() if 'wv' in self.cfg.adapts else None
-        self.wv_B = self._init_B() if 'wv' in self.cfg.adapts else None
+        self.wq_A = self._init_A() if self._adapt_exists('wq') else None
+        self.wq_B = self._init_B() if self._adapt_exists('wq') else None
+        self.wk_A = self._init_A() if self._adapt_exists('wk') else None
+        self.wk_B = self._init_B() if self._adapt_exists('wk') else None
+        self.wv_A = self._init_A() if self._adapt_exists('wv') else None
+        self.wv_B = self._init_B() if self._adapt_exists('wv') else None
 
+    def _adapt_exists(self, key: Literal['wq', 'wk', 'wv']) -> bool: 
+        return key in self.cfg.adapts
+ 
     def _init_A(self) -> nn.ParameterList:
         params = nn.ParameterList([nn.Parameter(torch.empty(self.embed, self.cfg.rank)) for _ in range(self.fmodel.config.n_layer)])
         [nn.init.normal_(p, mean=0.0, std=1 / math.sqrt(self.embed)) for p in params]
@@ -63,9 +66,9 @@ class LoRAGPT(nn.Module):
         xq, xk, xv = None, None, None
         for i, block in enumerate(self.fmodel.transformer.h):
             h = block.ln_1(x)
-            if 'wq' in self.cfg.adapts: xq = h @ self.wq_A[i] @ self.wq_B[i] * self.scale
-            if 'wk' in self.cfg.adapts: xk = h @ self.wk_A[i] @ self.wk_B[i] * self.scale
-            if 'wv' in self.cfg.adapts: xv = h @ self.wv_A[i] @ self.wv_B[i] * self.scale 
+            if self._adapt_exists('wq'): xq = h @ self.wq_A[i] @ self.wq_B[i] * self.scale
+            if self._adapt_exists('wk'): xk = h @ self.wk_A[i] @ self.wk_B[i] * self.scale
+            if self._adapt_exists('wv'): xv = h @ self.wv_A[i] @ self.wv_B[i] * self.scale 
             x = x + block.attn(h, xq, xk, xv)
             x = x + block.mlp(block.ln_2(x))            
         x = self.fmodel.transformer.ln_f(x)
@@ -91,7 +94,6 @@ class LoRAGPT(nn.Module):
         if self.wv_B is not None: params += sum([m.numel() for m in self.wv_B.parameters()])
         return params 
 
-
     def configure_optimizer(self, weight_decay: float, learning_rate: float, betas: tuple[float, float], device_type: str): 
         params = [p for p in self.parameters() if p.requires_grad]
         fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
@@ -101,10 +103,24 @@ class LoRAGPT(nn.Module):
         print(f"using fused AdamW: {use_fused}")
         return optimizer
 
-    def merge_n_save(self, out_dir: str, ckpt_name: str): 
+    @torch.no_grad()
+    def merge_n_save(self, out_dir: str, ckpt_name: str) -> nn.Module: 
+        for i in range(self.fmodel.config.n_layer): 
+            # c_attn: in_features: config.n_embd, out_features: 3 * config.n_embd, split(self.n_embd, dim=2) gives q,k,v
+            W = self.fmodel.transformer.h[i].attn.c_attn.weight # weight shape is [out_features, in_features] 
+            if self._adapt_exists('wq'): 
+                W[:self.fmodel.config.n_embd, :] += (self.wq_A[i] @ self.wq_B[i]).T * self.scale
+            if self._adapt_exists('wk'): 
+                W[self.fmodel.config.n_embd: self.fmodel.config.n_embd*2, :] += (self.wk_A[i] @ self.wk_B[i]).T * self.scale
+            if self._adapt_exists('wv'): 
+                W[self.fmodel.config.n_embd*2: self.fmodel.config.n_embd*3, :] += (self.wv_A[i] @ self.wv_B[i]).T * self.scale
+
         if not os.path.exists(out_dir): os.makedirs(out_dir, exist_ok=True) 
         checkpoint = {
             'model': self.fmodel.state_dict(), 
             'model_args': asdict(self.fmodel.config), 
         }
         torch.save(checkpoint, os.path.join(out_dir, ckpt_name + '.pt'))
+
+        return self.fmodel 
+    
