@@ -28,7 +28,7 @@ if __name__ == '__main__':
     fm_logits, _ = lora_gpt.fmodel.forward(idx)
     assert torch.allclose(lora_logits, fm_logits)
     
-    merge_model = lora_gpt.merge_n_save('./out', 'raw')
+    merge_model = lora_gpt.merge()
     merge_logits, _ = merge_model.forward(idx)
     assert torch.allclose(merge_logits, fm_logits)
     assert torch.allclose(merge_logits, lora_logits)

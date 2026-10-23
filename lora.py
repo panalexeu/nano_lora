@@ -30,6 +30,7 @@ class LoRAGPT(nn.Module):
         self.fmodel.requires_grad_(False)  
         self.embed = self.fmodel.config.n_embd
         self.scale = self.cfg.alpha / self.cfg.rank
+        self._is_merged = False
 
         assert 1 <= self.cfg.rank <= self.embed 
         assert 1 <= len(self.cfg.adapts) <= 3
@@ -103,8 +104,8 @@ class LoRAGPT(nn.Module):
         print(f"using fused AdamW: {use_fused}")
         return optimizer
 
-    @torch.no_grad()
-    def merge_n_save(self, out_dir: str, ckpt_name: str) -> nn.Module: 
+    @torch.no_grad() 
+    def merge(self) -> nn.Module:
         for i in range(self.fmodel.config.n_layer): 
             # c_attn: in_features: config.n_embd, out_features: 3 * config.n_embd, split(self.n_embd, dim=2) gives q,k,v
             W = self.fmodel.transformer.h[i].attn.c_attn.weight # weight shape is [out_features, in_features] 
@@ -114,13 +115,18 @@ class LoRAGPT(nn.Module):
                 W[self.fmodel.config.n_embd: self.fmodel.config.n_embd*2, :] += (self.wk_A[i] @ self.wk_B[i]).T * self.scale
             if self._adapt_exists('wv'): 
                 W[self.fmodel.config.n_embd*2: self.fmodel.config.n_embd*3, :] += (self.wv_A[i] @ self.wv_B[i]).T * self.scale
+        
+        self._is_merged = True
+        return self.fmodel
 
-        if not os.path.exists(out_dir): os.makedirs(out_dir, exist_ok=True) 
+    def merge_n_save(self, out_dir: str, ckpt_name: str): 
+        if not self._is_merged: 
+            self.merge()
+        if not os.path.exists(out_dir): 
+            os.makedirs(out_dir, exist_ok=True) 
+        
         checkpoint = {
             'model': self.fmodel.state_dict(), 
             'model_args': asdict(self.fmodel.config), 
         }
         torch.save(checkpoint, os.path.join(out_dir, ckpt_name + '.pt'))
-
-        return self.fmodel 
-    
