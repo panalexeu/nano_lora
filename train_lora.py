@@ -2,14 +2,16 @@ from contextlib import nullcontext
 
 import torch
 import tiktoken
+import datasets 
 
 from lora import LoRAGPT, LoRAConfig
 
 # data
-dataset = ''
-gradient_acuumulation_steps = 5
+ds_path = './data/alpaca-cleaned/ds'
+ds = datasets.load_from_disk(ds_path)
+gradient_acumulation_steps = 5
 batch_size = 5
-block_size = 256
+block_size = 3072
 # lora
 rank = 1
 alpha = 1 
@@ -30,12 +32,36 @@ device = 'cuda'
 dtype = 'bfloat16'
 compile = True
 
+# encoding 
 enc = tiktoken.get_encoding("gpt2")
 encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
 decode = lambda l: enc.decode(l)
 
-def _get_batch(split): 
-    pass
+def _get_batch(split):
+    data = ds[split]
+    idxs = torch.randint(len(data), (batch_size,)).tolist()
+    rows = data[idxs]                       # dict of lists: rows['ids'], rows['instr_len'], ...
+
+    xs, ys = [], []
+    for ids, instr_len in zip(rows['ids'], rows['instr_len']):
+        ids = ids[:block_size + 1]          # safety truncation (see note below)
+        x = torch.tensor(ids[:-1], dtype=torch.long)
+        y = torch.tensor(ids[1:], dtype=torch.long)
+        y[:instr_len - 1] = -1              # don't train on predicting the prompt
+        xs.append(x)
+        ys.append(y)
+
+    x = torch.full((batch_size, block_size), enc.eot_token, dtype=torch.long)
+    y = torch.full((batch_size, block_size), -1, dtype=torch.long)
+    for i, (xi, yi) in enumerate(zip(xs, ys)):
+        x[i, :len(xi)] = xi
+        y[i, :len(yi)] = yi
+
+    if device_type == 'cuda':
+        x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
+    else:
+        x, y = x.to(device), y.to(device)
+    return x, y
 
 def _get_lr(it):
     # linear warmup from ~0 to max_lr
@@ -68,9 +94,10 @@ if __name__ == '__main__':
 
     scaler = torch.amp.GradScaler(enabled=(dtype=='float16'))
     optimizer = model.configure_optimizer(weight_decay, lr, (beta1, beta2), device_type)
-
     if compile: 
         model = torch.compile(model)
+
+    batch = _get_batch('train')
 
     while True: 
         pass
