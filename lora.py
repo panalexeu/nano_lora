@@ -1,7 +1,8 @@
+import os 
 import math
 import inspect
 from typing import Literal
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 
 import torch 
 import torch.nn as nn 
@@ -100,6 +101,10 @@ class LoRAGPT(nn.Module):
         print(f"using fused AdamW: {use_fused}")
         return optimizer
 
-    def merge(): 
-        # TODO implement lr matrices merging into model weights 
-        pass
+    def merge_n_save(self, out_dir: str, ckpt_name: str): 
+        if not os.path.exists(out_dir): os.makedirs(out_dir, exist_ok=True) 
+        checkpoint = {
+            'model': self.fmodel.state_dict(), 
+            'model_args': asdict(self.fmodel.config), 
+        }
+        torch.save(checkpoint, os.path.join(out_dir, ckpt_name + '.pt'))
