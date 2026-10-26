@@ -43,7 +43,7 @@ if __name__ == '__main__':
     #         num_rows: 49172
     #     })
     #     val: Dataset({
-    #         features: ['output', 'input', 'instruction'],
+    #         features: ['output', 'input', 'instruction']
     #         num_rows: 2588
     #     })
     # })
