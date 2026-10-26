@@ -1,5 +1,6 @@
 # a nanogpt sample.py version that feels more like chatting with an llm experience 
 import sys 
+from typing import Literal
 from contextlib import nullcontext
 
 import torch 
@@ -9,14 +10,14 @@ import torch.nn as nn
 from model import GPTConfig, GPT
 
 # -----------------------------------------------------------------------------
-max_new_tokens = 512
-temperature = 0.8 
+max_new_tokens = 64 # 512
+temperature = 0.8
 top_k = 256 
 seed = 2004
 device = 'cuda' 
 dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16'
 compile = True 
-template = 'alpaca'
+template: Literal['alpaca', 'emoji'] = 'emoji' # alpaca
 enc = tiktoken.get_encoding("gpt2")
 stop_tokens = [enc.eot_token]
 # -----------------------------------------------------------------------------
@@ -24,6 +25,7 @@ stop_tokens = [enc.eot_token]
 prompt_templates = {
     'alpaca_instr': "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n{instruction}\n\n### Response:\n",
     'alpaca_input': "Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:\n",
+    'emoji': '{instruction}\n\n'
 }
 
 encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
@@ -45,6 +47,8 @@ def _form_prompt(instr: str, inp: str):
         return prompt_templates[template + '_input'].format(instruction=instr, input=inp)
     elif instr and not inp and template == 'alpaca':
         return prompt_templates[template + '_instr'].format(instruction=instr)
+    elif instr and template == 'emoji': 
+        return prompt_templates[template].format(instruction=instr) 
 
 if __name__ == '__main__': 
     torch.manual_seed(seed)
