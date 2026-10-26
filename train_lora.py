@@ -48,6 +48,23 @@ exec(open('configurator.py').read()) # overrides from command line or config fil
 # -----------------------------------------------------------------------------
 ds = datasets.load_from_disk(ds_path)
 
+def _vram_estimate(model: LoRAGPT, dtype: str):
+    # claude provided the formula and for now i tend to agree with him:
+    # todo read this paper: https://arxiv.org/pdf/2205.05198
+    cfg = model.fmodel.config
+    L, d, V = cfg.n_layer, cfg.n_embd, cfg.vocab_size
+    tokens = batch_size * block_size
+    bytes_ = {'bfloat16': 2, 'float32': 4}[dtype]
+
+    frozen_weights = model.fmodel.get_num_params(non_embedding=False) * bytes_ # P_frozen * dtype
+    lora_train = model.get_lora_params_count() * 16 # P_lora * (weights + grads + adam (m,v))
+    mask_bytes = 1 if cfg.dropout > 0 else 0
+    activations = L * tokens * (16 * d * bytes_ + 2 * d * mask_bytes) # megatron: 16d stored values per token per layer + 2d bytes of dropout masks
+    fp32_copy = 4 if dtype == 'bfloat16' else 0
+    loss_ = tokens * V * (bytes_ + fp32_copy + 4) # dtype logits + autocast copy in fp32 + fp32 gradient in the backward pass
+    overhead = 400 * 1024**2 # cuda context + allocator overhead
+    return frozen_weights + lora_train + activations + loss_ + overhead
+
 def _get_batch(split):
     # if it works => do not touch! 
     data = ds[split]
@@ -116,6 +133,7 @@ if __name__ == '__main__':
     )
     model = LoRAGPT(cfg)
     model.to(device)
+    print(f'training VRAM estimate: {_vram_estimate(model, dtype) / 1024**3:.2f} GB')
 
     optimizer = model.configure_optimizer(weight_decay, learning_rate, (beta1, beta2), device_type)
     if compile: 
