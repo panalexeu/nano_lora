@@ -1,4 +1,4 @@
-# a nanogpt sample.py version that feels more like chatting with an llm
+# a nanogpt sample.py version that feels more like chatting with an llm experience 
 import sys 
 from contextlib import nullcontext
 
