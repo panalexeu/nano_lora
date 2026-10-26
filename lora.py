@@ -108,6 +108,10 @@ class LoRAGPT(nn.Module):
 
     @torch.no_grad() 
     def merge(self) -> nn.Module:
+        # the fmodel might have been moved to a lower precision, 
+        # so to avoid downcasting the adapters from f32, we move the fmodel weights back to f32
+        self.fmodel.float() 
+
         for i in range(self.fmodel.config.n_layer): 
             # c_attn: in_features: config.n_embd, out_features: 3 * config.n_embd, split(self.n_embd, dim=2) gives q,k,v
             W = self.fmodel.transformer.h[i].attn.c_attn.weight # weight shape is [out_features, in_features] 

@@ -132,6 +132,7 @@ if __name__ == '__main__':
         block_size=block_size
     )
     model = LoRAGPT(cfg)
+    model.fmodel.to(ptdtype) # move fmodel to ptdtype saving vram if dtype==bfloat16
     model.to(device)
     print(f'training VRAM estimate: {_vram_estimate(model, dtype) / 1024**3:.2f} GB')
 
