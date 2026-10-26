@@ -1,0 +1,20 @@
+# DART config + emojify sft
+# I/O
+ckpt_name = 'emoji_gpt'  
+eval_interval = 64 
+eval_iters = 505 // 32
+# data 
+block_size = 64 
+batch_size = 32
+gradient_accumulation_steps = 1
+ds_path = './data/emojify-sft/ds'
+# lora
+adapts = set(['wq', 'wv'])
+rank = 4
+alpha = 32
+# adamw
+max_iters = (2023 // 32) * 5
+weight_decay = 0.0
+# lr 
+warmup_iters = 16
+learning_rate = 2e-4

@@ -20,7 +20,6 @@ eval_iters = 2535 // 4 # divided by the actual batch size
 eval_only = False
 # data
 ds_path = './data/alpaca-cleaned/ds'
-ds = datasets.load_from_disk(ds_path)
 gradient_accumulation_steps = 2
 batch_size = 4
 block_size = 512
@@ -47,7 +46,7 @@ enc = tiktoken.get_encoding("gpt2")
 # -----------------------------------------------------------------------------
 exec(open('configurator.py').read()) # overrides from command line or config file
 # -----------------------------------------------------------------------------
-breakpoint()
+ds = datasets.load_from_disk(ds_path)
 
 def _get_batch(split):
     # if it works => do not touch! 
