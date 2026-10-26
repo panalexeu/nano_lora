@@ -25,7 +25,7 @@ stop_tokens = [enc.eot_token]
 prompt_templates = {
     'alpaca_instr': "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n{instruction}\n\n### Response:\n",
     'alpaca_input': "Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Response:\n",
-    'emoji': '{instruction}\n\n'
+    'emoji': "Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.\n\n### Instruction\nTranslate the text into emojis.\n\n### Input:\n{input}\n\n### Response:\n"
 }
 
 encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
@@ -47,8 +47,8 @@ def _form_prompt(instr: str, inp: str):
         return prompt_templates[template + '_input'].format(instruction=instr, input=inp)
     elif instr and not inp and template == 'alpaca':
         return prompt_templates[template + '_instr'].format(instruction=instr)
-    elif instr and template == 'emoji': 
-        return prompt_templates[template].format(instruction=instr) 
+    elif not instr and inp and template == 'emoji': 
+        return prompt_templates[template].format(input=inp) 
 
 if __name__ == '__main__': 
     torch.manual_seed(seed)
@@ -68,8 +68,9 @@ if __name__ == '__main__':
     while True: 
         # form prompt 
         instr = input('### Instruction: ')
-        if not instr: continue # if enter was pressed just continue
         inp = input('### Input: ')
+        if not instr and not inp: 
+            continue 
         prompt = _form_prompt(instr, inp) 
 
         # generate and stream! 

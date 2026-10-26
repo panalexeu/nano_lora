@@ -2,11 +2,11 @@
 # I/O
 ckpt_name = 'emoji_gpt'  
 eval_interval = 64 
-eval_iters = 505 // 32
+eval_iters = 505 // 16
 # data 
-block_size = 64 
-batch_size = 32
-gradient_accumulation_steps = 1
+block_size = 128
+batch_size = 16
+gradient_accumulation_steps = 2
 ds_path = './data/emojify-sft/ds'
 # lora
 adapts = set(['wq', 'wv'])
