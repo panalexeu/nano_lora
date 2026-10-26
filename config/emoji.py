@@ -1,4 +1,3 @@
-# DART config + emojify sft, gives step 1216: train loss 1.5133, val loss 1.8461
 # I/O
 ckpt_name = 'emoji_gpt'  
 eval_interval = 64 
