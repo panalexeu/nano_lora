@@ -44,6 +44,10 @@ dtype = 'bfloat16'
 compile = True
 # encoding 
 enc = tiktoken.get_encoding("gpt2")
+# -----------------------------------------------------------------------------
+exec(open('configurator.py').read()) # overrides from command line or config file
+# -----------------------------------------------------------------------------
+breakpoint()
 
 def _get_batch(split):
     # if it works => do not touch! 
