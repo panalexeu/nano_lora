@@ -12,7 +12,7 @@ adapts = set(['wq', 'wv', 'wk'])
 rank = 4
 alpha = 32
 # adamw
-max_iters = (2023 // 16) * 10
+max_iters = (2023 // 16) * 5
 weight_decay = 0.0
 # lr 
 warmup_iters = 64
