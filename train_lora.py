@@ -76,7 +76,7 @@ def _get_batch(split):
         ids = ids[:block_size + 1]          # safety truncation 
         x = torch.tensor(ids[:-1], dtype=torch.long)
         y = torch.tensor(ids[1:], dtype=torch.long)
-        y[:instr_len - 1] = -1              # don't train on predicting the prompt
+        if instr_len > 0: y[:instr_len - 1] = -1 # don't train on predicting the prompt
         xs.append(x)
         ys.append(y)
 
