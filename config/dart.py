@@ -13,3 +13,4 @@ model_type = 'gpt2-medium'
 max_iters = (62_659 // batch_size) * 5
 eval_iters = 256
 eval_interval = 1000
+ckpt_name = 'dart_gpt'
