@@ -17,7 +17,7 @@ seed = 2004
 device = 'cuda' 
 dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16'
 compile = True 
-template: Literal['alpaca', 'emoji', 'shv', 'dart'] = 'dart' # alpaca
+template: Literal['alpaca', 'emoji', 'shv', 'dart'] = 'alpaca' # alpaca
 enc = tiktoken.get_encoding("gpt2")
 stop_tokens = [enc.eot_token]
 # -----------------------------------------------------------------------------
